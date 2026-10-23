@@ -1,7 +1,7 @@
 # FluffScript
 
 An easy programming language for beginners and kids — simpler than Python,
-with drawing and games built in.
+with drawing and games built in. Still in development.
 
 ```
 cat = sprite "🐱", 200, 540
@@ -70,7 +70,7 @@ npm test
 
 ## Status
 
-Version 0.2 — work in progress. Next: modules and a standard library (files, web) for tools and servers.
+Version 0.2 — in development. Next: modules and a standard library (files, web) for tools and servers.
 
 ## License
 
