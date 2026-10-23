@@ -46,6 +46,8 @@
   }
 
   * { box-sizing: border-box; }
+  /* `hidden` must win over display: flex/grid below. */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -113,7 +115,7 @@
     overflow: hidden;
   }
   .panel-head {
-    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 8px;
     padding: 8px 14px;
     border-bottom: 1px solid var(--line);
     font-size: 0.78rem;
@@ -161,6 +163,26 @@
   .stage { padding: 12px; display: flex; justify-content: center; background: repeating-conic-gradient(var(--line) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
   canvas { display: block; max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 1px 0 var(--line); }
 
+  .file-actions { display: flex; align-items: center; gap: 6px; }
+  .file-actions .name { text-transform: none; letter-spacing: 0; font-family: var(--font-code); color: var(--ink); font-weight: 600; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .save-box {
+    display: grid; gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--ask-bg);
+  }
+  .save-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .save-row input {
+    flex: 1 1 120px; min-width: 0;
+    font: inherit; font-family: var(--font-code);
+    padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .save-row .ext { font-family: var(--font-code); font-weight: 600; }
+  .save-row button { min-height: 36px; padding: 4px 14px; }
+  .save-row .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .save-msg { margin: 0; font-size: 0.9rem; }
+  .save-msg:empty { display: none; }
   canvas.playing { touch-action: none; }
   .pad {
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
@@ -258,7 +280,31 @@
 
   <div class="bench">
     <section class="panel" aria-label="Code">
-      <div class="panel-head"><span>Your program</span><span id="status">ready</span></div>
+      <div class="panel-head">
+        <div class="file-actions">
+          <span class="name" id="file-name" title="File name">my-program.fluff</span>
+        </div>
+        <div class="file-actions">
+          <button id="new-file" type="button">New</button>
+          <button id="open-file" type="button">Open</button>
+          <button id="save-file" type="button">Save</button>
+          <span id="status">ready</span>
+        </div>
+      </div>
+      <input id="file-input" type="file" accept=".fluff,.txt,text/plain" hidden>
+      <form class="save-box" id="save-box" hidden>
+        <div class="save-row">
+          <label for="save-name" hidden>File name</label>
+          <input id="save-name" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="File name">
+          <span class="ext">.fluff</span>
+          <button class="primary" type="submit" id="save-go">Save</button>
+          <button type="button" id="save-cancel">Cancel</button>
+        </div>
+        <p class="save-msg" id="save-msg" role="status"></p>
+        <div class="save-row" id="save-txt-row" hidden>
+          <button type="button" id="save-txt">Save as .fluff.txt</button>
+        </div>
+      </form>
       <div class="editor">
         <pre class="gutter" id="gutter" aria-hidden="true">1</pre>
         <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="FluffScript code"></textarea>
@@ -349,6 +395,7 @@ const statusEl = $('status');
 const picker = $('example');
 const MAX_LINES = 400;
 const DRAFT_KEY = 'fluffscript-draft';
+const NAME_KEY = 'fluffscript-name';
 
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -619,13 +666,131 @@ picker.addEventListener('change', () => {
   const k = picker.value;
   if (!k) return;
   stop();
-  code.value = examples[k];
-  store.set(DRAFT_KEY, code.value);
-  updateGutter();
+  loadProgram(examples[k], k);
   picker.value = '';
 });
 
-code.value = store.get(DRAFT_KEY) || examples.house;
+// ---- .fluff files ----
+// Programs are saved and opened as .fluff files: plain text with FluffScript
+// code. Inside claude.ai the page may only offer files through the
+// `downloads` capability, whose list of allowed endings has no .fluff; then
+// the viewer can choose .fluff.txt instead.
+
+let fileName = 'my-program';
+const fileNameEl = $('file-name');
+const saveBox = $('save-box');
+const saveName = $('save-name');
+const saveMsg = $('save-msg');
+const saveTxtRow = $('save-txt-row');
+
+function cleanName(name) {
+  const n = String(name || '').replace(/\.fluff(\.txt)?$/i, '').replace(/\.txt$/i, '').replace(/[\\/:*?"<>|]+/g, '-').trim();
+  return n || 'my-program';
+}
+function setFileName(name) {
+  fileName = cleanName(name);
+  fileNameEl.textContent = `${fileName}.fluff`;
+  store.set(NAME_KEY, fileName);
+}
+function loadProgram(text, name) {
+  code.value = text;
+  store.set(DRAFT_KEY, code.value);
+  setFileName(name);
+  updateGutter();
+}
+
+$('new-file').addEventListener('click', () => {
+  stop();
+  loadProgram('say "Hello!"\n', 'my-program');
+  code.focus();
+});
+
+const fileInput = $('file-input');
+$('open-file').addEventListener('click', () => fileInput.click());
+async function openFile(file) {
+  if (!file) return;
+  if (file.size > 1_000_000) { print(`${file.name} is too big for a FluffScript program.`, 'error'); return; }
+  const text = await file.text();
+  stop();
+  loadProgram(text.replace(/\r\n/g, '\n'), file.name);
+  print(`Opened ${file.name}`, 'muted');
+}
+fileInput.addEventListener('change', () => { openFile(fileInput.files[0]); fileInput.value = ''; });
+code.addEventListener('dragover', (e) => e.preventDefault());
+code.addEventListener('drop', (e) => {
+  const f = e.dataTransfer?.files?.[0];
+  if (f) { e.preventDefault(); openFile(f); }
+});
+
+// Inside claude.ai: the `downloads` capability. Elsewhere: null.
+let downloadsPromise = null;
+function getDownloads() {
+  if (!window.claude || typeof window.claude.use !== 'function') return Promise.resolve(null);
+  downloadsPromise ??= window.claude.use('downloads').catch(() => null);
+  return downloadsPromise;
+}
+
+function plainDownload(filename, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function save(filename) {
+  const downloads = await getDownloads();
+  if (!downloads) {
+    plainDownload(filename, code.value);
+    return 'saved';
+  }
+  try {
+    await downloads.save({ filename, data: code.value });
+    return 'saved';
+  } catch (e) {
+    if (e?.code === 'declined') return 'declined';
+    if (e?.code === 'rejected_extension' || e?.code === 'extension_not_enabled') return 'blocked';
+    if (e?.code === 'rate_limited') return 'busy';
+    return 'failed';
+  }
+}
+
+function closeSaveBox() { saveBox.hidden = true; saveMsg.textContent = ''; saveTxtRow.hidden = true; }
+$('save-file').addEventListener('click', () => {
+  if (!saveBox.hidden) { closeSaveBox(); return; }
+  saveName.value = fileName;
+  saveMsg.textContent = '';
+  saveTxtRow.hidden = true;
+  saveBox.hidden = false;
+  saveName.focus();
+  saveName.select();
+});
+$('save-cancel').addEventListener('click', closeSaveBox);
+saveBox.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setFileName(saveName.value);
+  const result = await save(`${fileName}.fluff`);
+  if (result === 'saved') { closeSaveBox(); print(`Saved ${fileName}.fluff`, 'muted'); }
+  else if (result === 'declined') saveMsg.textContent = 'Not saved.';
+  else if (result === 'busy') saveMsg.textContent = 'A save is already waiting for an answer. Try again in a moment.';
+  else if (result === 'blocked') {
+    saveMsg.textContent = 'This preview can\'t save .fluff files. You can save it as a text file and rename it to .fluff later.';
+    saveTxtRow.hidden = false;
+  } else saveMsg.textContent = 'Saving doesn\'t work here.';
+});
+$('save-txt').addEventListener('click', async () => {
+  const result = await save(`${fileName}.fluff.txt`);
+  if (result === 'saved') { closeSaveBox(); print(`Saved ${fileName}.fluff.txt`, 'muted'); }
+  else if (result === 'declined') saveMsg.textContent = 'Not saved.';
+  else saveMsg.textContent = 'Saving doesn\'t work here.';
+});
+
+const draft = store.get(DRAFT_KEY);
+if (draft) { code.value = draft; setFileName(store.get(NAME_KEY) || 'my-program'); }
+else loadProgram(examples.house, 'house');
 updateGutter();
 start();
 </script>

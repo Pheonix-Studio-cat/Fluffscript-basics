@@ -21,6 +21,9 @@ say "Hello, world!"
 
 ## Programs and lines
 
+A FluffScript program is a plain text file ending in **`.fluff`**
+(UTF-8), for example `my-game.fluff`.
+
 Every statement goes on its own line. Indentation is optional but makes
 programs easier to read. `#` starts a comment that runs to the end of the line.
 

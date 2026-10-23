@@ -36,7 +36,8 @@ end
 
 ## Run it
 
-Playground (editor, picture and console in the browser):
+Playground (editor, picture and console in the browser; **New / Open / Save**
+work with `.fluff` files):
 
 ```
 npm run build        # writes dist/playground.html — open it in a browser
