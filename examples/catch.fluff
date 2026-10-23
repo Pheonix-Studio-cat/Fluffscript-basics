@@ -1,0 +1,30 @@
+# Catch the stars! Move with ◀ ▶ or the arrow keys.
+canvas 400, 600
+background "midnightblue"
+cat = sprite "🐱", 200, 550
+star = sprite "⭐", random(20, 380), 0
+score = 0
+speed = 4
+
+repeat forever
+  if key "left" and cat.x > 25
+    cat.x -= 7
+  end
+  if key "right" and cat.x < 375
+    cat.x += 7
+  end
+
+  star.y += speed
+  if cat touches star
+    score += 1
+    speed += 0.5
+    star.x = random(20, 380)
+    star.y = 0
+  end
+
+  show "Score: {score}"
+  if star.y > 620
+    show "Game over! You caught {score} stars."
+    stop
+  end
+end

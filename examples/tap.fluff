@@ -1,0 +1,31 @@
+# Tap the hamster before it runs away! You have 30 seconds.
+canvas 400, 400
+background "yellowgreen"
+hamster = sprite "🐹", 200, 200
+hamster.size = 70
+score = 0
+frames = 0
+
+function jump_away()
+  hamster.x = random(50, 350)
+  hamster.y = random(80, 350)
+end
+
+repeat forever
+  frames += 1
+  if hamster tapped
+    score += 1
+    jump_away()
+  end
+  # every second it runs away by itself (60 frames = 1 second)
+  if frames % 60 == 0
+    jump_away()
+  end
+
+  seconds_left = 30 - round(frames / 60)
+  show "Score: {score}   Time: {seconds_left}"
+  if seconds_left <= 0
+    show "Time is up! Score: {score}"
+    stop
+  end
+end

@@ -1,0 +1,23 @@
+# A house in the sun
+canvas 400, 300
+background "skyblue"
+
+color "gold"
+circle 340, 60, 35
+
+color "green"
+rect 0, 240, 400, 60
+
+color "tan"
+rect 120, 140, 160, 100
+
+color "brown"
+triangle 100, 140, 300, 140, 200, 70
+rect 185, 190, 30, 50
+
+color "white"
+rect 140, 160, 30, 30
+rect 230, 160, 30, 30
+
+color "black"
+text "My house", 10, 30

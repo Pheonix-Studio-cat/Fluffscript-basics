@@ -1,0 +1,56 @@
+# Snake! Steer with the arrows and eat the apples.
+canvas 400, 400
+background "darkslategray"
+cell = 20
+snake = [[5, 10], [4, 10], [3, 10]]
+dx = 1
+dy = 0
+apple = sprite "🍎", 0, 0
+apple.size = 20
+ax = random(0, 19)
+ay = random(0, 19)
+frames = 0
+
+repeat forever
+  if key "left" and dx == 0
+    dx = -1
+    dy = 0
+  else if key "right" and dx == 0
+    dx = 1
+    dy = 0
+  else if key "up" and dy == 0
+    dx = 0
+    dy = -1
+  else if key "down" and dy == 0
+    dx = 0
+    dy = 1
+  end
+
+  # the snake moves one cell every 10 frames
+  frames += 1
+  if frames % 10 == 0
+    head = snake[1]
+    x = head[1] + dx
+    y = head[2] + dy
+    if x < 0 or x > 19 or y < 0 or y > 19 or contains(snake, [x, y])
+      show "Game over! Length: {length(snake)}"
+      stop
+    end
+    insert(snake, 1, [x, y])
+    if x == ax and y == ay
+      ax = random(0, 19)
+      ay = random(0, 19)
+    else
+      remove(snake, length(snake))
+    end
+  end
+
+  apple.x = ax * cell + cell / 2
+  apple.y = ay * cell + cell / 2
+  clear
+  color "limegreen"
+  for each part in snake
+    rect part[1] * cell + 1, part[2] * cell + 1, cell - 2, cell - 2
+  end
+  show "Length: {length(snake)}"
+end

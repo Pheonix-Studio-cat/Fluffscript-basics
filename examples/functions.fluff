@@ -1,0 +1,21 @@
+# Functions and lists
+function greet(who)
+  say "Hello " + who + "!"
+end
+
+function square(n)
+  return n * n
+end
+
+friends = ["Mia", "Leo", "Sam"]
+for each friend in friends
+  greet(friend)
+end
+
+for each i from 1 to 5
+  say i + " squared is " + square(i)
+end
+
+add(friends, "Ava")
+say "Now there are " + length(friends) + " friends: " + friends
+say "The first one is " + friends[1]
