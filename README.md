@@ -1,2 +1,2 @@
 # Fluffscript-basics
-An easy Programming Language but its in work
+An easy Programming Language but its in development
