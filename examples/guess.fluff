@@ -1,0 +1,16 @@
+# Guess the number
+secret = random(1, 20)
+tries = 0
+guess = 0
+
+say "I'm thinking of a number between 1 and 20."
+while guess != secret
+  guess = ask "Your guess?"
+  tries = tries + 1
+  if guess < secret
+    say "Higher!"
+  else if guess > secret
+    say "Lower!"
+  end
+end
+say "Yes! It was " + secret + ". You needed " + tries + " tries."

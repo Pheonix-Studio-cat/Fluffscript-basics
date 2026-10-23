@@ -1,0 +1,13 @@
+{
+  "name": "fluffscript",
+  "version": "0.1.0",
+  "description": "An easy programming language for beginners, with simple graphics.",
+  "type": "module",
+  "bin": { "fluff": "bin/fluff.js" },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build": "node scripts/build-playground.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "AGPL-3.0-only"
+}

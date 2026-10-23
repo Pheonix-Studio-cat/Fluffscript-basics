@@ -1,0 +1,13 @@
+# A rainbow with a loop
+canvas 400, 250
+background "lightblue"
+colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"]
+
+size = 180
+for each c in colors
+  color c
+  circle 200, 240, size
+  size = size - 15
+end
+color "lightblue"
+circle 200, 240, size

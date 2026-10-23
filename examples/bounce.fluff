@@ -1,0 +1,21 @@
+# A bouncing ball (press Stop to end it)
+canvas 400, 300
+x = 50
+y = 50
+dx = 4
+dy = 3
+
+repeat forever
+  clear
+  color "tomato"
+  circle x, y, 20
+  x = x + dx
+  y = y + dy
+  if x < 20 or x > 380
+    dx = -dx
+  end
+  if y < 20 or y > 280
+    dy = -dy
+  end
+  wait 0.02
+end
