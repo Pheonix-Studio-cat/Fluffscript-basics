@@ -7,15 +7,18 @@ import { FluffError } from './errors.js';
 export const KEYWORDS = new Set([
   'if', 'else', 'end', 'repeat', 'times', 'forever', 'while', 'for', 'each', 'in',
   'function', 'return', 'and', 'or', 'not', 'true', 'false', 'nothing', 'ask',
+  'sprite', 'key', 'touches', 'tapped',
 ]);
 
-const SYMBOLS = ['==', '!=', '<=', '>=', '+', '-', '*', '/', '%', '<', '>', '=', '(', ')', '[', ']', ','];
+const SYMBOLS = ['==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '+', '-', '*', '/', '%', '<', '>', '=', '(', ')', '[', ']', ',', '.'];
 
-export function tokenize(source) {
+// `startLine`/`startCol` are used for the code inside {…} in a text, so its
+// errors point at the right place.
+export function tokenize(source, startLine = 1, startCol = 1) {
   const tokens = [];
   let i = 0;
-  let line = 1;
-  let col = 1;
+  let line = startLine;
+  let col = startCol;
 
   const push = (type, value, l, c) => tokens.push({ type, value, line: l, col: c });
   const advance = (n = 1) => {
@@ -60,6 +63,8 @@ export function tokenize(source) {
       const quote = ch;
       const l = line, c = col;
       advance();
+      // A text is a list of parts: plain text, and {code} to fill in.
+      const parts = [];
       let text = '';
       while (true) {
         if (i >= source.length || source[i] === '\n') {
@@ -76,10 +81,41 @@ export function tokenize(source) {
           advance(next === undefined ? 1 : 2);
           continue;
         }
+        if (s === '{') {
+          const bl = line, bc = col;
+          advance();
+          const cl = line, cc = col;
+          let code = '';
+          let depth = 0;
+          while (true) {
+            if (i >= source.length || source[i] === '\n' || source[i] === quote) {
+              throw new FluffError('This { in the text is never closed. Add a } after the name, like this: "Score: {score}"', bl, bc);
+            }
+            if (source[i] === '{') depth++;
+            if (source[i] === '}') {
+              if (depth === 0) break;
+              depth--;
+            }
+            code += source[i];
+            advance();
+          }
+          advance();
+          if (code.trim() === '') {
+            throw new FluffError('There is nothing between { and }. Put a name inside, like this: "Score: {score}"', bl, bc);
+          }
+          if (text) parts.push(text);
+          text = '';
+          parts.push({ code, line: cl, col: cc });
+          continue;
+        }
         text += s;
         advance();
       }
-      push('string', text, l, c);
+      if (parts.length === 0) push('string', text, l, c);
+      else {
+        if (text) parts.push(text);
+        push('template', parts, l, c);
+      }
       continue;
     }
 

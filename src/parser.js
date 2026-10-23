@@ -9,10 +9,13 @@ export function parse(source) {
   return new Parser(tokenize(source)).program();
 }
 
+const ASSIGN_OPS = ['=', '+=', '-=', '*=', '/='];
+
 const describe = (t) => {
   if (t.type === 'newline') return 'the end of the line';
   if (t.type === 'eof') return 'the end of the program';
   if (t.type === 'string') return `the text "${t.value}"`;
+  if (t.type === 'template') return 'a text';
   return `\`${t.value}\``;
 };
 
@@ -95,30 +98,41 @@ class Parser {
       }
     }
 
-    if (t.type === 'name' && this.is('symbol', '=', 1)) {
+    const isAssignOp = (offset) => {
+      const n = this.peek(offset);
+      return n.type === 'symbol' && ASSIGN_OPS.includes(n.value);
+    };
+
+    if (t.type === 'name' && isAssignOp(1)) {
       this.next();
-      this.next();
+      const op = this.next().value;
       const value = this.expression();
       this.endOfLine();
-      return { type: 'Assign', name: t.value, value, line: t.line, col: t.col };
+      return { type: 'Assign', name: t.value, op, value, line: t.line, col: t.col };
     }
 
-    if (t.type === 'name' && Object.hasOwn(COMMANDS, t.value)) {
+    // A command word starts a command, unless the line stores something:
+    // `color = "red"`, `line[1] = 5`, `text.size += 1`.
+    const usedAsName = (this.is('symbol', '.', 1) || this.is('symbol', '[', 1)) && this.lineAssigns();
+    if (t.type === 'name' && Object.hasOwn(COMMANDS, t.value) && !usedAsName) {
       return this.command();
     }
 
     const expr = this.expression();
-    if (this.isSymbol('=')) {
+    if (isAssignOp(0)) {
       const eq = this.next();
-      if (expr.type !== 'Index') {
-        throw new FluffError('You can only store a value in a name or in a list item.', eq.line, eq.col);
+      if (expr.type !== 'Index' && expr.type !== 'Member') {
+        throw new FluffError('You can only store a value in a name, a list item or a property like cat.x.', eq.line, eq.col);
       }
       const value = this.expression();
       this.endOfLine();
-      return { type: 'SetIndex', target: expr.target, index: expr.index, value, line: eq.line, col: eq.col };
+      if (expr.type === 'Member') {
+        return { type: 'SetMember', target: expr.target, name: expr.name, op: eq.value, value, line: eq.line, col: eq.col };
+      }
+      return { type: 'SetIndex', target: expr.target, index: expr.index, op: eq.value, value, line: eq.line, col: eq.col };
     }
     this.endOfLine();
-    if (expr.type !== 'Call' && expr.type !== 'Ask') {
+    if (expr.type !== 'Call' && expr.type !== 'Ask' && expr.type !== 'Sprite') {
       throw new FluffError('This line doesn\'t do anything. Did you want to `say` it?', t.line, t.col);
     }
     return { type: 'ExprStatement', expr, line: t.line, col: t.col };
@@ -151,7 +165,27 @@ class Parser {
     return { type: 'Command', name: t.value, args, line: t.line, col: t.col };
   }
 
-  tryBracketedArgs() {
+  // Does the current line contain `=` (or `+=` …) outside of brackets?
+  lineAssigns() {
+    let depth = 0;
+    for (let k = this.pos; k < this.tokens.length; k++) {
+      const t = this.tokens[k];
+      if (t.type === 'newline' || t.type === 'eof') return false;
+      if (t.type !== 'symbol') continue;
+      if (t.value === '(' || t.value === '[') depth++;
+      else if (t.value === ')' || t.value === ']') depth--;
+      else if (depth === 0 && ASSIGN_OPS.includes(t.value)) return true;
+    }
+    return false;
+  }
+
+  commaArgs() {
+    const args = [this.argument()];
+    while (this.accept('symbol', ',')) args.push(this.argument());
+    return args;
+  }
+
+  tryBracketedArgs(anywhere = false) {
     const start = this.pos;
     try {
       this.next();
@@ -161,7 +195,7 @@ class Parser {
         while (this.accept('symbol', ',')) args.push(this.argument());
       }
       this.expect('symbol', ')');
-      if (this.is('newline') || this.is('eof')) return args;
+      if (anywhere || this.is('newline') || this.is('eof')) return args;
     } catch (e) {
       if (!(e instanceof FluffError)) throw e;
     }
@@ -327,6 +361,9 @@ class Parser {
     if (this.is('symbol') && ops.includes(this.peek().value)) {
       const op = this.next();
       left = { type: 'Binary', op: op.value, left, right: this.additive(), line: op.line, col: op.col };
+    } else if (this.isKeyword('touches')) {
+      const op = this.next();
+      left = { type: 'Touches', left, right: this.additive(), line: op.line, col: op.col };
     }
     return left;
   }
@@ -374,6 +411,17 @@ class Parser {
         const index = this.argument();
         this.expect('symbol', ']', 'I expected `]` here.');
         expr = { type: 'Index', target: expr, index, line: open.line, col: open.col };
+      } else if (this.isSymbol('.')) {
+        const dot = this.next();
+        const name = this.peek();
+        if (name.type !== 'name' && name.type !== 'keyword') {
+          throw new FluffError('After the . I expected the name of a property, like cat.x', name.line, name.col);
+        }
+        this.next();
+        expr = { type: 'Member', target: expr, name: name.value, line: dot.line, col: dot.col };
+      } else if (this.isKeyword('tapped')) {
+        const t = this.next();
+        expr = { type: 'Tapped', target: expr, line: t.line, col: t.col };
       } else {
         return expr;
       }
@@ -385,6 +433,20 @@ class Parser {
     if (t.type === 'number' || t.type === 'string') {
       this.next();
       return { type: 'Literal', value: t.value, line: t.line, col: t.col };
+    }
+    if (t.type === 'template') {
+      this.next();
+      const parts = t.value.map((part) => {
+        if (typeof part === 'string') return part;
+        const inner = new Parser(tokenize(part.code, part.line, part.col));
+        const expr = inner.argument();
+        if (!inner.is('newline') && !inner.is('eof')) {
+          const bad = inner.peek();
+          throw new FluffError(`Inside { } I expected one value, but found ${describe(bad)}.`, bad.line, bad.col);
+        }
+        return expr;
+      });
+      return { type: 'Template', parts, line: t.line, col: t.col };
     }
     if (t.type === 'name') {
       this.next();
@@ -398,6 +460,26 @@ class Parser {
       if (t.value === 'nothing') {
         this.next();
         return { type: 'Literal', value: null, line: t.line, col: t.col };
+      }
+      if (t.value === 'sprite') {
+        this.next();
+        const start = this.pos;
+        let args = this.isSymbol('(') ? this.tryBracketedArgs(true) : null;
+        if (!args || args.length !== 3) {
+          this.pos = start;
+          args = this.commaArgs();
+        }
+        if (args.length !== 3) {
+          throw new FluffError(`\`sprite\` needs 3 values (picture, x, y), but got ${args.length}. Write it like this: sprite "⭐", 100, 50`, t.line, t.col);
+        }
+        return { type: 'Sprite', args, line: t.line, col: t.col };
+      }
+      if (t.value === 'key') {
+        this.next();
+        if (this.is('newline') || this.is('eof')) {
+          throw new FluffError('Which key? Write it like this: key "left"', t.line, t.col);
+        }
+        return { type: 'Key', name: this.additive(), line: t.line, col: t.col };
       }
       if (t.value === 'ask') {
         this.next();

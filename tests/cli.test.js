@@ -49,9 +49,13 @@ test('without a file it shows how to use it', () => {
   assert.match(r.stdout, /Usage: fluff/);
 });
 
-test('every example except the endless animation runs without error', () => {
+// Games (`repeat forever`) run in real time here, so they are played in
+// game.test.js with a fake clock instead.
+test('every example that is not a game runs without error', () => {
   const dir = mkdtempSync(join(tmpdir(), 'fluff-'));
-  const examples = readdirSync(join(root, 'examples')).filter((f) => f.endsWith('.fluff') && f !== 'bounce.fluff');
+  const examples = readdirSync(join(root, 'examples'))
+    .filter((f) => f.endsWith('.fluff'))
+    .filter((f) => !readFileSync(join(root, 'examples', f), 'utf8').includes('repeat forever'));
   assert.ok(examples.length >= 4);
   const answers = Array.from({ length: 20 }, (_, i) => i + 1).join('\n') + '\n';
   for (const f of examples) {

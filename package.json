@@ -1,11 +1,11 @@
 {
   "name": "fluffscript",
-  "version": "0.1.0",
-  "description": "An easy programming language for beginners, with simple graphics.",
+  "version": "0.2.0",
+  "description": "An easy programming language for beginners and kids, with drawing and games built in.",
   "type": "module",
   "bin": { "fluff": "bin/fluff.js" },
   "scripts": {
-    "test": "node --test tests/*.test.js",
+    "test": "node --test --test-timeout=20000 tests/*.test.js",
     "build": "node scripts/build-playground.js"
   },
   "engines": { "node": ">=18" },

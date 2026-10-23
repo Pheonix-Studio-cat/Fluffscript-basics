@@ -1,4 +1,5 @@
 # A bouncing ball (press Stop to end it)
+# `repeat forever` runs 60 times per second.
 canvas 400, 300
 x = 50
 y = 50
@@ -17,5 +18,4 @@ repeat forever
   if y < 20 or y > 280
     dy = -dy
   end
-  wait 0.02
 end

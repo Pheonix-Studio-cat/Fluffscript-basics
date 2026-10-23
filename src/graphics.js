@@ -35,6 +35,48 @@ export function normalizeColor(value) {
   return null;
 }
 
+// A picture file is drawn as an image; any other text (usually an emoji) is
+// drawn as letters.
+export function isImageFile(name) {
+  return /^(https?:|data:image\/)/i.test(name) || /\.(png|jpe?g|gif|svg|webp)$/i.test(name);
+}
+
+const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+
+// A sprite is a figure that stays on the picture until it is hidden. Its x and
+// y are its middle; it fills a square of `size` pixels.
+export class Sprite {
+  constructor(image, x, y) {
+    this.image = image;
+    this.x = x;
+    this.y = y;
+    this.size = 50;
+    this.angle = 0;
+    this.hidden = false;
+  }
+
+  // The square the sprite fills: [left, top, right, bottom].
+  box() {
+    const h = this.size / 2;
+    return [this.x - h, this.y - h, this.x + h, this.y + h];
+  }
+
+  touches(other) {
+    if (this.hidden || other.hidden || this === other) return false;
+    const [a1, b1, c1, d1] = this.box();
+    const [a2, b2, c2, d2] = other.box();
+    return a1 < c2 && a2 < c1 && b1 < d2 && b2 < d1;
+  }
+
+  contains(px, py) {
+    if (this.hidden) return false;
+    const [a, b, c, d] = this.box();
+    return px >= a && px <= c && py >= b && py <= d;
+  }
+}
+
+export const SPRITE_PROPERTIES = ['x', 'y', 'size', 'angle', 'hidden', 'image'];
+
 export class Picture {
   constructor() {
     this.width = 400;
@@ -43,7 +85,16 @@ export class Picture {
     this.color = 'black';
     this.thickness = 2;
     this.shapes = [];
+    this.sprites = [];
+    this.status = '';
     this.used = false;
+  }
+
+  addSprite(image, x, y) {
+    this.used = true;
+    const s = new Sprite(image, x, y);
+    this.sprites.push(s);
+    return s;
   }
 
   add(shape) {
@@ -84,13 +135,28 @@ export class Picture {
           break;
       }
     }
+    for (const sp of this.sprites) {
+      if (sp.hidden) continue;
+      const rot = sp.angle ? ` transform="rotate(${n(sp.angle)} ${n(sp.x)} ${n(sp.y)})"` : '';
+      if (isImageFile(sp.image)) {
+        const h = sp.size / 2;
+        out.push(`<image href="${esc(sp.image)}" x="${n(sp.x - h)}" y="${n(sp.y - h)}" width="${n(sp.size)}" height="${n(sp.size)}"${rot}/>`);
+      } else {
+        out.push(`<text x="${n(sp.x)}" y="${n(sp.y)}" font-size="${n(sp.size * 0.85)}" text-anchor="middle" dominant-baseline="central"${rot}>${esc(sp.image)}</text>`);
+      }
+    }
+    if (this.status) {
+      out.push(`<text x="10" y="26" font-family="sans-serif" font-size="20" font-weight="bold" fill="black" stroke="white" stroke-width="4" paint-order="stroke">${esc(this.status)}</text>`);
+    }
     out.push('</svg>');
     return out.join('\n') + '\n';
   }
 }
 
 // Paints the picture onto a 2D canvas context. Used by the playground.
-export function paint(picture, ctx) {
+// `getImage(name)` returns a loaded image for a picture file, or null while
+// it is still loading or missing.
+export function paint(picture, ctx, getImage = () => null) {
   ctx.save();
   ctx.fillStyle = picture.background;
   ctx.fillRect(0, 0, picture.width, picture.height);
@@ -129,6 +195,43 @@ export function paint(picture, ctx) {
       default:
         break;
     }
+  }
+  for (const sp of picture.sprites) {
+    if (sp.hidden || sp.size <= 0) continue;
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+    if (sp.angle) ctx.rotate((sp.angle * Math.PI) / 180);
+    if (isImageFile(sp.image)) {
+      const img = getImage(sp.image);
+      if (img && img.width) {
+        const scale = sp.size / Math.max(img.width, img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      } else {
+        ctx.strokeStyle = '#999';
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(-sp.size / 2, -sp.size / 2, sp.size, sp.size);
+      }
+    } else {
+      ctx.font = `${sp.size * 0.85}px ${EMOJI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'black';
+      ctx.fillText(sp.image, 0, 0);
+    }
+    ctx.restore();
+  }
+  if (picture.status) {
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'white';
+    ctx.strokeText(picture.status, 10, 26);
+    ctx.fillStyle = 'black';
+    ctx.fillText(picture.status, 10, 26);
   }
   ctx.restore();
 }

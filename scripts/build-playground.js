@@ -26,7 +26,7 @@ function bundle() {
 
 function examples() {
   const dir = join(root, 'examples');
-  const order = ['house', 'rainbow', 'bounce', 'guess', 'functions', 'hello'];
+  const order = ['catch', 'jump', 'tap', 'snake', 'house', 'rainbow', 'bounce', 'guess', 'functions', 'hello'];
   const files = readdirSync(dir).filter((f) => f.endsWith('.fluff')).map((f) => basename(f, '.fluff'));
   const names = [...order.filter((n) => files.includes(n)), ...files.filter((n) => !order.includes(n)).sort()];
   const data = Object.fromEntries(names.map((n) => [n, readFileSync(join(dir, `${n}.fluff`), 'utf8')]));

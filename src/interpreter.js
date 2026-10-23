@@ -6,14 +6,24 @@
 
 import { FluffError, suggest } from './errors.js';
 import { parse } from './parser.js';
-import { Picture, normalizeColor, COLOR_NAMES } from './graphics.js';
+import { Picture, Sprite, SPRITE_PROPERTIES, normalizeColor, COLOR_NAMES } from './graphics.js';
 
 const MAX_CALL_DEPTH = 1000;
 const TEXT_SIZE = 20;
 
+// Keys a game can ask for with `key "..."`.
+const KEY_NAMES = ['left', 'right', 'up', 'down', 'space', 'enter',
+  ...'abcdefghijklmnopqrstuvwxyz0123456789'.split('')];
+
+// Names that always exist in a game and tell where the finger or mouse is.
+const POINTER_NAMES = ['touch_x', 'touch_y', 'touching'];
+
 class ReturnSignal {
   constructor(value) { this.value = value; }
 }
+
+// `stop` in a program: ends it normally.
+class EndSignal {}
 
 export class StopSignal extends Error {
   constructor() { super('Stopped.'); this.name = 'StopSignal'; }
@@ -75,6 +85,7 @@ export function show(value, nested = false) {
   if (typeof value === 'string') return nested ? JSON.stringify(value) : value;
   if (Array.isArray(value)) return `[${value.map((v) => show(v, true)).join(', ')}]`;
   if (value instanceof FluffFunction || value instanceof Builtin) return `function ${value.name}`;
+  if (value instanceof Sprite) return `sprite ${JSON.stringify(value.image)}`;
   return String(value);
 }
 
@@ -84,6 +95,7 @@ function kind(value) {
   if (typeof value === 'string') return 'a text';
   if (typeof value === 'boolean') return `\`${value}\``;
   if (Array.isArray(value)) return 'a list';
+  if (value instanceof Sprite) return 'a sprite';
   return 'a function';
 }
 
@@ -120,6 +132,7 @@ export class Interpreter {
     this.steps = 0;
     this.depth = 0;
     this.picture = new Picture();
+    this.taps = [];
     this.globals = new Scope();
     this.builtins = this.makeBuiltins();
   }
@@ -130,7 +143,11 @@ export class Interpreter {
     for (const stmt of program.body) {
       if (stmt.type === 'Function') this.globals.define(stmt.name, new FluffFunction(stmt, this.globals));
     }
-    await this.block(program.body, this.globals);
+    try {
+      await this.block(program.body, this.globals);
+    } catch (e) {
+      if (!(e instanceof EndSignal)) throw e;
+    }
     return { picture: this.picture };
   }
 
@@ -153,18 +170,38 @@ export class Interpreter {
   async execute(node, scope) {
     await this.step(node);
     switch (node.type) {
-      case 'Assign':
-        scope.set(node.name, await this.evaluate(node.value, scope));
+      case 'Assign': {
+        let value = await this.evaluate(node.value, scope);
+        if (node.op && node.op !== '=') {
+          const old = scope.get(node.name);
+          if (!old.found) {
+            throw new FluffError(`\`${node.name}\` has no value yet, so I can't use \`${node.op}\` on it. Start with: ${node.name} = 0`, node.line, node.col);
+          }
+          value = this.combine(node, old.value, value);
+        }
+        scope.set(node.name, value);
         return;
+      }
 
       case 'SetIndex': {
         const target = await this.evaluate(node.target, scope);
         const index = await this.evaluate(node.index, scope);
-        const value = await this.evaluate(node.value, scope);
+        let value = await this.evaluate(node.value, scope);
         if (!Array.isArray(target)) {
           throw new FluffError(`Only list items can be changed this way, but this is ${kind(target)}.`, node.line, node.col);
         }
-        target[this.position(target, index, node) - 1] = value;
+        const p = this.position(target, index, node) - 1;
+        if (node.op && node.op !== '=') value = this.combine(node, target[p], value);
+        target[p] = value;
+        return;
+      }
+
+      case 'SetMember': {
+        const target = await this.evaluate(node.target, scope);
+        let value = await this.evaluate(node.value, scope);
+        this.checkProperty(target, node.name, node);
+        if (node.op && node.op !== '=') value = this.combine(node, target[node.name], value);
+        this.setProperty(target, node.name, value, node);
         return;
       }
 
@@ -183,9 +220,12 @@ export class Interpreter {
 
       case 'Repeat': {
         if (node.count === null) {
+          // `repeat forever` is the game loop: every round is one frame,
+          // about 60 per second.
           while (true) {
             await this.step(node);
             await this.block(node.body, scope);
+            await this.frame();
           }
         }
         const count = await this.evaluate(node.count, scope);
@@ -259,7 +299,75 @@ export class Interpreter {
         const r = scope.get(node.name);
         if (r.found) return r.value;
         if (Object.hasOwn(this.builtins, node.name)) return this.builtins[node.name];
+        if (POINTER_NAMES.includes(node.name)) {
+          const p = (this.host.pointer && this.host.pointer()) || { x: 0, y: 0, down: false };
+          if (node.name === 'touch_x') return p.x;
+          if (node.name === 'touch_y') return p.y;
+          return Boolean(p.down);
+        }
         throw this.unknownName(node, scope);
+      }
+
+      case 'Template': {
+        let out = '';
+        for (const part of node.parts) out += typeof part === 'string' ? part : show(await this.evaluate(part, scope));
+        return out;
+      }
+
+      case 'Member': {
+        const target = await this.evaluate(node.target, scope);
+        this.checkProperty(target, node.name, node);
+        return target[node.name];
+      }
+
+      case 'Sprite': {
+        const args = [];
+        for (const a of node.args) args.push(await this.evaluate(a, scope));
+        if (typeof args[0] !== 'string' || args[0] === '') {
+          throw new FluffError(`A sprite needs a picture: an emoji like "⭐" or a file like "cat.png", but got ${describeValue(args[0])}.`, node.line, node.col);
+        }
+        for (const [i, label] of [[1, 'x'], [2, 'y']]) {
+          if (typeof args[i] !== 'number' || !Number.isFinite(args[i])) {
+            throw new FluffError(`\`sprite\` needs a number for ${label}, but got ${describeValue(args[i])}.`, node.line, node.col);
+          }
+        }
+        const sprite = this.picture.addSprite(args[0], args[1], args[2]);
+        if (this.host.render) this.host.render(this.picture);
+        return sprite;
+      }
+
+      case 'Key': {
+        const name = await this.evaluate(node.name, scope);
+        const k = typeof name === 'string' ? name.toLowerCase() : name;
+        if (!KEY_NAMES.includes(k)) {
+          const guess = typeof name === 'string' ? suggest(k, KEY_NAMES) : null;
+          throw new FluffError(`I don't know the key ${describeValue(name)}.${guess ? ` Did you mean "${guess}"?` : ' Try "left", "right", "up", "down", "space" or a letter.'}`, node.line, node.col);
+        }
+        if (this.host.usesKeys) this.host.usesKeys();
+        return Boolean(this.host.key && this.host.key(k));
+      }
+
+      case 'Touches': {
+        const a = await this.evaluate(node.left, scope);
+        const b = await this.evaluate(node.right, scope);
+        if (!(a instanceof Sprite)) {
+          throw new FluffError(`\`touches\` works with sprites, but the left side is ${kind(a)}.`, node.line, node.col);
+        }
+        const others = Array.isArray(b) ? b : [b];
+        for (const o of others) {
+          if (!(o instanceof Sprite)) {
+            throw new FluffError(`\`touches\` works with sprites, but the right side ${Array.isArray(b) ? 'has' : 'is'} ${kind(o)}.`, node.line, node.col);
+          }
+        }
+        return others.some((o) => a.touches(o));
+      }
+
+      case 'Tapped': {
+        const target = await this.evaluate(node.target, scope);
+        if (!(target instanceof Sprite)) {
+          throw new FluffError(`Only sprites can be tapped, but this is ${kind(target)}.`, node.line, node.col);
+        }
+        return this.taps.some((t) => target.contains(t.x, t.y));
       }
 
       case 'Ask': {
@@ -304,6 +412,41 @@ export class Interpreter {
       default:
         throw new FluffError(`Unknown expression ${node.type}.`, node.line, node.col);
     }
+  }
+
+  // One frame of a game: show the picture, wait for the screen, collect taps.
+  async frame() {
+    if (this.host.render && this.picture.used) this.host.render(this.picture);
+    if (this.host.frame) await this.host.frame();
+    else if (this.host.wait) await this.host.wait(1 / 60);
+    if (this.host.shouldStop && this.host.shouldStop()) throw new StopSignal();
+    this.taps = this.host.takeTaps ? this.host.takeTaps() : [];
+  }
+
+  // `x += 1` and friends.
+  combine(node, old, value) {
+    return this.binary({ op: node.op[0], line: node.line, col: node.col }, old, value);
+  }
+
+  checkProperty(target, name, node) {
+    if (!(target instanceof Sprite)) {
+      throw new FluffError(`Only sprites have properties like .${name}, but this is ${kind(target)}.`, node.line, node.col);
+    }
+    if (!SPRITE_PROPERTIES.includes(name)) {
+      const guess = suggest(name, SPRITE_PROPERTIES);
+      throw new FluffError(`Sprites don't have .${name}.${guess ? ` Did you mean .${guess}?` : ''} They have ${SPRITE_PROPERTIES.map((p) => '.' + p).join(', ')}.`, node.line, node.col);
+    }
+  }
+
+  setProperty(sprite, name, value, node) {
+    if (name === 'hidden') {
+      if (typeof value !== 'boolean') throw new FluffError(`.hidden must be true or false, but got ${describeValue(value)}.`, node.line, node.col);
+    } else if (name === 'image') {
+      if (typeof value !== 'string' || value === '') throw new FluffError(`.image must be an emoji or a picture file, but got ${describeValue(value)}.`, node.line, node.col);
+    } else if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new FluffError(`.${name} must be a number, but got ${describeValue(value)}.`, node.line, node.col);
+    }
+    sprite[name] = value;
   }
 
   // Lists start at 1: the first item is list[1].
@@ -442,6 +585,13 @@ export class Interpreter {
       case 'say':
         if (this.host.say) await this.host.say(args.length ? show(args[0]) : '');
         return;
+      case 'stop':
+        if (this.host.render && pic.used) this.host.render(pic);
+        throw new EndSignal();
+      case 'show':
+        pic.status = args.length ? show(args[0]) : '';
+        pic.used = true;
+        break;
       case 'wait': {
         const s = num(0, 'seconds');
         if (s < 0) fail('`wait` can\'t wait less than 0 seconds.');
@@ -529,6 +679,18 @@ export class Interpreter {
       }),
       b('abs', ['number'], ([v], node) => Math.abs(num(v, 'abs', 'number', node))),
       b('add', ['list', 'item'], ([l, item], node) => { list(l, 'add', node).push(item); return null; }),
+      b('insert', ['list', 'position', 'item'], ([l, p, item], node) => {
+        list(l, 'insert', node);
+        // Position length + 1 means "at the end".
+        if (p === l.length + 1) l.push(item);
+        else l.splice(this.position(l, p, node) - 1, 0, item);
+        return null;
+      }),
+      b('contains', ['where', 'what'], ([where, what], node) => {
+        if (Array.isArray(where)) return where.some((x) => equal(x, what));
+        if (typeof where === 'string') return where.includes(show(what));
+        throw new FluffError(`\`contains\` needs a list or a text, but got ${describeValue(where)}.`, node.line, node.col);
+      }),
       b('remove', ['list', 'position'], ([l, p], node) => {
         list(l, 'remove', node);
         return l.splice(this.position(l, p, node) - 1, 1)[0];

@@ -1,28 +1,36 @@
 # FluffScript
 
-An easy programming language for beginners and kids — with simple graphics
-built in.
+An easy programming language for beginners and kids — simpler than Python,
+with drawing and games built in.
 
 ```
-say "Hello, world!"
+cat = sprite "🐱", 200, 540
+star = sprite "⭐", 100, 0
+score = 0
 
-name = ask "What's your name?"
-say "Hi " + name
+repeat forever
+  if key "left"
+    cat.x -= 5
+  end
+  if key "right"
+    cat.x += 5
+  end
 
-repeat 3 times
-  say "Fluff!"
+  star.y += 3
+  if cat touches star
+    score += 1
+    star.y = 0
+  end
+
+  show "Score: {score}"
 end
-
-canvas 400, 300
-background "skyblue"
-color "gold"
-circle 340, 60, 35
 ```
 
-- Reads like English: `repeat 3 times`, `for each fruit in fruits`
-- No `{ }`, no `;` — blocks end with `end`
+- Reads like English: `repeat 3 times`, `for each fruit in fruits`, `if cat touches star`
+- No `{ }` blocks, no `;`, no imports, no setup — blocks end with `end`
 - Friendly errors: *Line 3: I don't know `nmae`. Did you mean `name`?*
-- Draw circles, rectangles, lines, triangles and text, and animate them
+- Games: sprites, keys, taps, collisions, a game loop at 60 frames per second
+- On phones the playground shows arrow buttons automatically
 
 **Language reference:** [SPEC.md](SPEC.md) · **Examples:** [examples/](examples/)
 
@@ -54,14 +62,14 @@ npm test
 | `src/lexer.js` | cuts the text into tokens |
 | `src/parser.js` | builds a tree from the tokens |
 | `src/interpreter.js` | runs the tree |
-| `src/graphics.js` | the picture, as SVG or on a canvas |
+| `src/graphics.js` | the picture and sprites, as SVG or on a canvas |
 | `src/errors.js` | friendly errors and "Did you mean …?" |
 | `bin/fluff.js` | command line |
 | `playground/` | the browser playground |
 
 ## Status
 
-Version 0.1 — work in progress.
+Version 0.2 — work in progress. Next: modules and a standard library (files, web) for tools and servers.
 
 ## License
 

@@ -5,12 +5,14 @@
 
 export const COMMANDS = {
   say: { params: ['value'], min: 0 },
+  show: { params: ['value'], min: 0 },
   wait: { params: ['seconds'] },
   canvas: { params: ['width', 'height'] },
   background: { params: ['color'] },
   color: { params: ['color'] },
   thickness: { params: ['size'] },
   clear: { params: [] },
+  stop: { params: [] },
   circle: { params: ['x', 'y', 'radius'] },
   rect: { params: ['x', 'y', 'width', 'height'] },
   line: { params: ['x1', 'y1', 'x2', 'y2'] },
