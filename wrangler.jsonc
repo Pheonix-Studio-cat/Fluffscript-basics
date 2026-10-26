@@ -1,0 +1,14 @@
+// FLUFFSCRIPT ENGINE as a public website on Cloudflare: a Worker that only
+// serves static files. `npm run build` writes them to dist/site/.
+{
+  "name": "fluffscript-engine",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/site"
+  },
+  // The public address is name.<account>.workers.dev. Written down on
+  // purpose, so it does not depend on a Cloudflare default.
+  "workers_dev": true,
+  // Every branch gets its own preview address to try changes before main.
+  "preview_urls": true
+}

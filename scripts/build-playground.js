@@ -1,7 +1,13 @@
-// Builds the playground into one self-contained HTML file (dist/playground.html):
-// the engine and the examples are inlined, so the page needs no server.
+// Builds the FLUFFSCRIPT ENGINE editor into self-contained HTML files: the
+// engine and the examples are inlined, so the page needs no server.
 //
-//   node scripts/build-playground.js [output-file]
+//   dist/playground.html  for a claude.ai Artifact (no <html>/<head>, the
+//                         Artifact adds its own skeleton and charset)
+//   dist/site/index.html  a complete web page, served by Cloudflare
+//                         (see wrangler.jsonc)
+//
+//   node scripts/build-playground.js [artifact-file]
+//   (the site goes to site/index.html next to the artifact file)
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -9,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = process.argv[2] || join(root, 'dist/playground.html');
+const siteOut = join(dirname(out), 'site/index.html');
 // The engine comes from npm (`npm install`), see package.json.
 const engine = join(root, 'node_modules/fluffscript-engine/src');
 if (!existsSync(engine)) {
@@ -40,7 +47,8 @@ function examples() {
 }
 
 let html = readFileSync(join(root, 'playground/index.html'), 'utf8');
-const head = html.match(/<head>([\s\S]*?)<\/head>/)[1]
+const fullHead = html.match(/<head>([\s\S]*?)<\/head>/)[1];
+const head = fullHead
   .replace(/<meta charset[^>]*>\n?/, '')
   .replace(/<meta name="viewport"[^>]*>\n?/, '');
 let body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
@@ -55,3 +63,8 @@ body = body.replace(exampleBlock, () => examples());
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, `${head.trim()}\n${body.trim()}\n`);
 console.log(`wrote ${out}`);
+
+const lang = (html.match(/<html lang="([^"]+)"/) || [])[1] || 'en';
+mkdirSync(dirname(siteOut), { recursive: true });
+writeFileSync(siteOut, `<!doctype html>\n<html lang="${lang}">\n<head>\n${fullHead.trim()}\n</head>\n<body>\n${body.trim()}\n</body>\n</html>\n`);
+console.log(`wrote ${siteOut}`);

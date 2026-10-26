@@ -24,4 +24,13 @@ test('the FLUFFSCRIPT ENGINE editor builds into one file without imports, and it
   writeFileSync(file, script);
   const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
   assert.equal(check.status, 0, check.stderr);
+
+  // The public website (Cloudflare) is a complete page with its own charset.
+  const site = readFileSync(join(dir, 'site/index.html'), 'utf8');
+  assert.match(site, /^<!doctype html>\n<html lang="en">/);
+  assert.match(site, /<meta charset="utf-8">/);
+  assert.match(site, /<title>FLUFFSCRIPT ENGINE<\/title>/);
+  assert.match(site, /<\/body>\n<\/html>\n$/);
+  assert.doesNotMatch(site, /^\s*import\b/m);
+  assert.equal(site.match(/<script type="module">([\s\S]*?)<\/script>/)[1], script);
 });
