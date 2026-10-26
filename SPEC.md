@@ -272,7 +272,7 @@ they can.
 | `touch_x`, `touch_y` | where the finger or mouse is on the picture |
 | `touching` | `true` while the finger or mouse button is down |
 
-On a phone the playground shows arrow buttons and a SPACE button as soon as a
+On a phone the FLUFFSCRIPT ENGINE shows arrow buttons and a SPACE button as soon as a
 program asks for a key.
 
 ### Text on top
@@ -291,4 +291,4 @@ Line 3: I don't know `nmae`. Did you mean `name`?
 ```
 
 Hosts may stop a program that runs too long (the command line doesn't; the
-playground has a Stop button).
+FLUFFSCRIPT ENGINE has a Stop button).

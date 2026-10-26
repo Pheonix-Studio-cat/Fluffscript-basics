@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FluffScript Playground</title>
+<title>FLUFFSCRIPT ENGINE</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,7 +66,8 @@
   }
   .tb-left, .tb-right { display: flex; align-items: center; gap: 4px; min-width: 0; }
   .tb-right { justify-content: flex-end; }
-  .logo { display: flex; align-items: center; gap: 7px; margin-right: 10px; font-weight: 700; font-size: 13px; letter-spacing: 0.01em; white-space: nowrap; }
+  .logo { display: flex; align-items: center; gap: 8px; margin-right: 12px; font-weight: 700; font-size: 12px; letter-spacing: 0.14em; white-space: nowrap; }
+  .logo-sub { color: var(--muted); font-weight: 500; }
   .logo-mark {
     width: 18px; height: 18px; border-radius: 4px; flex: none;
     background: linear-gradient(135deg, var(--brand), #d9733a);
@@ -300,7 +301,7 @@
 <div class="app">
   <header class="toolbar">
     <div class="tb-left">
-      <div class="logo"><span class="logo-mark" aria-hidden="true">F</span><span class="logo-text">FluffScript</span></div>
+      <div class="logo"><span class="logo-mark" aria-hidden="true">F</span><span class="logo-text">FLUFFSCRIPT <span class="logo-sub">ENGINE</span></span></div>
       <button id="new-file" class="tool" type="button" title="New program">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/></svg><span class="lbl">New</span></button>
       <button id="open-file" class="tool" type="button" title="Open a .fluff file">
@@ -430,7 +431,7 @@
     <span><span class="led" aria-hidden="true"></span><span id="status">Ready</span></span>
     <span class="grow"></span>
     <span id="sprite-count">0 sprites</span>
-    <span>FluffScript engine</span>
+    <span>FLUFFSCRIPT ENGINE · v0.2</span>
   </footer>
 </div>
 

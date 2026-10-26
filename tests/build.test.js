@@ -8,13 +8,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-test('the playground builds into one file without imports, and its script is valid', () => {
+test('the FLUFFSCRIPT ENGINE editor builds into one file without imports, and its script is valid', () => {
   const dir = mkdtempSync(join(tmpdir(), 'fluff-build-'));
   const out = join(dir, 'playground.html');
   const r = spawnSync(process.execPath, [join(root, 'scripts/build-playground.js'), out], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const html = readFileSync(out, 'utf8');
-  assert.match(html, /<title>FluffScript Playground<\/title>/);
+  assert.match(html, /<title>FLUFFSCRIPT ENGINE<\/title>/);
   assert.doesNotMatch(html, /<!doctype|<html|<body/i);
   assert.doesNotMatch(html, /^\s*import\b/m);
   assert.match(html, /const EXAMPLES = /);

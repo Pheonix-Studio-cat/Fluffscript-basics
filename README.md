@@ -30,7 +30,7 @@ end
 - No `{ }` blocks, no `;`, no imports, no setup — blocks end with `end`
 - Friendly errors: *Line 3: I don't know `nmae`. Did you mean `name`?*
 - Games: sprites, keys, taps, collisions, a game loop at 60 frames per second
-- On phones the playground shows arrow buttons automatically
+- On phones the FLUFFSCRIPT ENGINE shows arrow buttons automatically
 
 **Language reference:** [SPEC.md](SPEC.md) · **Examples:** [examples/](examples/)
 
@@ -42,7 +42,7 @@ First, once (Node 18+):
 npm install          # fetches the FluffScript engine
 ```
 
-Playground (editor, picture and console in the browser; **New / Open / Save**
+**FLUFFSCRIPT ENGINE** — the editor in the browser, laid out like a game engine (project, hierarchy, script, game view, console; **New / Open / Save**
 work with `.fluff` files):
 
 ```
@@ -72,8 +72,8 @@ The language runs on the **[FluffScript engine](https://github.com/Pheonix-Studi
 | `SPEC.md` | the language reference |
 | `examples/` | example programs and games |
 | `bin/fluff.js` | command line |
-| `playground/` | the browser playground |
-| `scripts/build-playground.js` | packs playground, engine and examples into one HTML file |
+| `playground/` | the FLUFFSCRIPT ENGINE editor in the browser |
+| `scripts/build-playground.js` | packs the editor, the engine and the examples into one HTML file |
 
 ## Status
 
