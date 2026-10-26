@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse, run } from '../src/index.js';
+import { parse, run } from 'fluffscript-engine';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 

@@ -8,7 +8,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { run, formatError, FluffError } from '../src/index.js';
+import { run, formatError, FluffError } from 'fluffscript-engine';
 
 const args = process.argv.slice(2);
 if (args.length === 0 || args.includes('--help') || args.includes('-h')) {

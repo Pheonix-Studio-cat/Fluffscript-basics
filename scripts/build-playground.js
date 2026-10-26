@@ -1,25 +1,31 @@
 // Builds the playground into one self-contained HTML file (dist/playground.html):
-// the interpreter and the examples are inlined, so the page needs no server.
+// the engine and the examples are inlined, so the page needs no server.
 //
 //   node scripts/build-playground.js [output-file]
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = process.argv[2] || join(root, 'dist/playground.html');
+// The engine comes from npm (`npm install`), see package.json.
+const engine = join(root, 'node_modules/fluffscript-engine/src');
+if (!existsSync(engine)) {
+  console.error('The FluffScript engine is missing. Run `npm install` first.');
+  process.exit(1);
+}
 
 // Order matters: every file comes after the files it imports.
 const ORDER = ['errors', 'commands', 'lexer', 'parser', 'graphics', 'interpreter'];
 
 function bundle() {
   const parts = ORDER.map((name) => {
-    let src = readFileSync(join(root, 'src', `${name}.js`), 'utf8');
+    let src = readFileSync(join(engine, `${name}.js`), 'utf8');
     src = src.replace(/^import [^;]+;\n/gm, '');
     src = src.replace(/^export (?=(async )?(function|class|const|let)\b)/gm, '');
-    if (/^\s*(import|export)\b/m.test(src)) throw new Error(`src/${name}.js has an import/export the bundler can't handle`);
-    return `// ---- src/${name}.js ----\n${src}`;
+    if (/^\s*(import|export)\b/m.test(src)) throw new Error(`fluffscript-engine/src/${name}.js has an import/export the bundler can't handle`);
+    return `// ---- fluffscript-engine/src/${name}.js ----\n${src}`;
   });
   return parts.join('\n');
 }
@@ -39,7 +45,7 @@ const head = html.match(/<head>([\s\S]*?)<\/head>/)[1]
   .replace(/<meta name="viewport"[^>]*>\n?/, '');
 let body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
 
-const importLine = /^import \{[^}]+\} from '\.\.\/src\/index\.js';$/m;
+const importLine = /^import \{[^}]+\} from '\.\.\/node_modules\/fluffscript-engine\/src\/index\.js';$/m;
 if (!importLine.test(body)) throw new Error('playground: import line not found');
 body = body.replace(importLine, () => bundle());
 const exampleBlock = /\/\* build:examples \*\/[\s\S]*?\/\* end:examples \*\//;

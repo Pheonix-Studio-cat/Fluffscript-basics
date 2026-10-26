@@ -3,11 +3,18 @@
   "version": "0.2.0",
   "description": "An easy programming language for beginners and kids, with drawing and games built in.",
   "type": "module",
-  "bin": { "fluff": "bin/fluff.js" },
+  "bin": {
+    "fluff": "bin/fluff.js"
+  },
   "scripts": {
     "test": "node --test --test-timeout=20000 tests/*.test.js",
     "build": "node scripts/build-playground.js"
   },
-  "engines": { "node": ">=18" },
-  "license": "AGPL-3.0-only"
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "fluffscript-engine": "github:Pheonix-Studio-cat/Fluffscript-engine#67936ffa099d55eee16a491caba3180931f7fede"
+  }
 }

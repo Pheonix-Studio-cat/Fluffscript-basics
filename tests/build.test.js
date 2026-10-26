@@ -16,7 +16,7 @@ test('the playground builds into one file without imports, and its script is val
   const html = readFileSync(out, 'utf8');
   assert.match(html, /<title>FluffScript Playground<\/title>/);
   assert.doesNotMatch(html, /<!doctype|<html|<body/i);
-  assert.doesNotMatch(html, /from '\.\.\/src/);
+  assert.doesNotMatch(html, /^\s*import\b/m);
   assert.match(html, /const EXAMPLES = /);
   assert.match(html, /class Interpreter/);
   const script = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];

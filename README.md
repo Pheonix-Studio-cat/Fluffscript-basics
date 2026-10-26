@@ -36,6 +36,12 @@ end
 
 ## Run it
 
+First, once (Node 18+):
+
+```
+npm install          # fetches the FluffScript engine
+```
+
 Playground (editor, picture and console in the browser; **New / Open / Save**
 work with `.fluff` files):
 
@@ -43,7 +49,7 @@ work with `.fluff` files):
 npm run build        # writes dist/playground.html — open it in a browser
 ```
 
-Command line (Node 18+):
+Command line:
 
 ```
 node bin/fluff.js examples/hello.fluff
@@ -58,15 +64,16 @@ npm test
 
 ## How it works
 
+The language runs on the **[FluffScript engine](https://github.com/Pheonix-Studio-cat/Fluffscript-engine)**
+(lexer, parser, interpreter, graphics). This repo is everything around it:
+
 | File | Job |
 | --- | --- |
-| `src/lexer.js` | cuts the text into tokens |
-| `src/parser.js` | builds a tree from the tokens |
-| `src/interpreter.js` | runs the tree |
-| `src/graphics.js` | the picture and sprites, as SVG or on a canvas |
-| `src/errors.js` | friendly errors and "Did you mean …?" |
+| `SPEC.md` | the language reference |
+| `examples/` | example programs and games |
 | `bin/fluff.js` | command line |
 | `playground/` | the browser playground |
+| `scripts/build-playground.js` | packs playground, engine and examples into one HTML file |
 
 ## Status
 
