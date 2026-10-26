@@ -68,6 +68,9 @@ npm test
 | `bin/fluff.js` | command line |
 | `playground/` | the browser playground |
 
+To run FluffScript inside your own program (a game engine, an editor), see
+[docs/host-api.md](docs/host-api.md).
+
 ## Status
 
 Version 0.2 — in development. Next: modules and a standard library (files, web) for tools and servers.

@@ -12,7 +12,7 @@ const MAX_CALL_DEPTH = 1000;
 const TEXT_SIZE = 20;
 
 // Keys a game can ask for with `key "..."`.
-const KEY_NAMES = ['left', 'right', 'up', 'down', 'space', 'enter',
+export const KEY_NAMES = ['left', 'right', 'up', 'down', 'space', 'enter',
   ...'abcdefghijklmnopqrstuvwxyz0123456789'.split('')];
 
 // Names that always exist in a game and tell where the finger or mouse is.
